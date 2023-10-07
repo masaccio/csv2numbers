@@ -49,11 +49,15 @@ def write_output(data: pd.DataFrame, filename: str) -> None:
 def read_csv_file(args: argparse.Namespace) -> pd.DataFrame:
     """Parse CSV file with Pandas and return a dataframe."""
     header = None if args.no_header else 0
+    if args.date is not None:
+        parse_dates = [int(x) if x.isnumeric() else x for x in args.date]
+    else:
+        parse_dates = False
     try:
         data = pd.read_csv(
             args.csvfile,
             header=header,
-            parse_dates=True,
+            parse_dates=parse_dates,
             dayfirst=args.day_first,
         )
     except FileNotFoundError:
@@ -109,8 +113,8 @@ def delete_columns(data: pd.DataFrame, columns: list) -> pd.DataFrame:
     return data
 
 
-def transform_rows(data: pd.DataFrame, args: argparse.Namespace) -> pd.DataFrame:
-    """Remove whitespace and re-order if required."""
+def transform_data(data: pd.DataFrame, args: argparse.Namespace) -> pd.DataFrame:
+    """Perform any data transformations."""
     for column in data.columns:
         if args.whitespace:
             data[column] = data[column].apply(func=filter_whitespace)
@@ -151,18 +155,23 @@ def parse_command_line() -> argparse.Namespace:
         help="dates are represented day first in the CSV file (default: false)",
     )
     parser.add_argument(
-        "--delete-column",
+        "--delete",
         action="append",
         help="delete the named column; can be repeated",
     )
     parser.add_argument(
-        "--rename-column",
+        "--date",
+        action="append",
+        help="parse the named column as a date; can be repeated",
+    )
+    parser.add_argument(
+        "--rename",
         action="append",
         metavar="MAPPING",
         help="rename named column using the mapping format 'OLD:NEW'; can be repeated",
     )
     parser.add_argument(
-        "--transform-column",
+        "--transform",
         action="append",
         metavar="MAPPING",
         help="transform values of columns into new columns; see docs for details",
@@ -175,14 +184,13 @@ def main() -> None:
     args = parse_command_line()
 
     data = read_csv_file(args)
-    data = rename_columns(data, args.rename_column)
-    data = delete_columns(data, args.delete_column)
-    data = transform_rows(data, args)
+    data = delete_columns(data, args.delete)
+    data = rename_columns(data, args.rename)
+    data = transform_data(data, args)
 
     print(data)
 
-    numbers_filename = Path(args.csvfile).with_suffix(".numbers")
-    write_output(data, numbers_filename)
+    write_output(data, Path(args.csvfile).with_suffix(".numbers"))
 
 
 if __name__ == "__main__":
