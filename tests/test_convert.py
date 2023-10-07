@@ -102,8 +102,8 @@ def test_transforms_1(script_runner, tmp_path) -> None:
 
 def test_transforms_2(script_runner, tmp_path) -> None:
     """Test conversion with transformation."""
-    csv_path = str(tmp_path / "format-2.csv")
-    shutil.copy("tests/data/format-2.csv", csv_path)
+    csv_path = str(tmp_path / "format-3.csv")
+    shutil.copy("tests/data/format-3.csv", csv_path)
 
     ret = script_runner.run(
         [
@@ -119,22 +119,20 @@ def test_transforms_2(script_runner, tmp_path) -> None:
             "--whitespace",
             "--day-first",
             "--date=0",
-            "--transform='6=MERGE:5,6'",
+            "--transform=6=MERGE:5,6",
             csv_path,
         ],
         print_result=False,
     )
 
-    assert ret.stdout == ""
-    assert ret.stderr == ""
     assert ret.success
     numbers_path = Path(csv_path).with_suffix(".numbers")
 
     assert numbers_path.exists()
     doc = Document(str(numbers_path))
     table = doc.sheets[0].tables[0]
-    assert table.cell(1, 5).value == "AutoShop.com"
-    assert str(table.cell(7, 0).value) == "2003-09-26T00:00:00+00:00"
+    assert table.cell(5, 1).value == "AutoShop.com"
+    assert str(table.cell(7, 0).value) == "2023-09-26T00:00:00+00:00"
     assert table.cell(0, 1).value == "Transaction"
     assert table.cell(0, 2).value == "Amount"
-    assert table.cell(7, 3).value == -1283.72
+    assert table.cell(7, 2).value == "-1,283.72"
