@@ -4,7 +4,6 @@ import shutil
 from pathlib import Path
 
 from numbers_parser import Document
-from pendulum import DateTime
 
 
 def test_help(script_runner) -> None:
@@ -65,7 +64,7 @@ def test_parse_error(script_runner) -> None:
     assert "Error tokenizing data" in ret.stderr
 
 
-def test_transforms(script_runner, tmp_path) -> None:
+def test_transforms_1(script_runner, tmp_path) -> None:
     """Test conversion with transformation."""
     csv_path = str(tmp_path / "format-2.csv")
     shutil.copy("tests/data/format-2.csv", csv_path)
@@ -99,3 +98,43 @@ def test_transforms(script_runner, tmp_path) -> None:
     assert table.cell(0, 3).value == "Withdrawn"
     assert table.cell(3, 2).value == 10
     assert table.cell(4, 3).value == 20.4
+
+
+def test_transforms_2(script_runner, tmp_path) -> None:
+    """Test conversion with transformation."""
+    csv_path = str(tmp_path / "format-2.csv")
+    shutil.copy("tests/data/format-2.csv", csv_path)
+
+    ret = script_runner.run(
+        [
+            "csv2numbers",
+            "--no-header",
+            "--rename=0:Date",
+            "--rename=1:Transaction",
+            "--rename=6:Amount",
+            "--delete=2",
+            "--delete=3",
+            "--delete=4",
+            "--delete=5",
+            "--whitespace",
+            "--day-first",
+            "--date=0",
+            "--transform='6=MERGE:5,6'",
+            csv_path,
+        ],
+        print_result=False,
+    )
+
+    assert ret.stdout == ""
+    assert ret.stderr == ""
+    assert ret.success
+    numbers_path = Path(csv_path).with_suffix(".numbers")
+
+    assert numbers_path.exists()
+    doc = Document(str(numbers_path))
+    table = doc.sheets[0].tables[0]
+    assert table.cell(1, 5).value == "AutoShop.com"
+    assert str(table.cell(7, 0).value) == "2003-09-26T00:00:00+00:00"
+    assert table.cell(0, 1).value == "Transaction"
+    assert table.cell(0, 2).value == "Amount"
+    assert table.cell(7, 3).value == -1283.72
