@@ -1,0 +1,29 @@
+[tool.poetry]
+name = "automator-scripts"
+version = "1.0.0"
+description = "Automator scripts"
+authors = ["Jon Connell <python@figsandfudge.com>"]
+readme = "README.md"
+packages = [{include = "automator_scripts"}]
+repository = "https://github.com/masaccio/automator-scripts"
+
+[tool.poetry.dependencies]
+python = ">=3.11,<3.13"
+numbers-parser = "^4.4.6"
+pandas = "^2.1.1"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.isort]
+profile = "black"
+
+[tool.ruff]
+fix = true
+select = ["ALL"]
+target-version = "py311"
+ignore = ["PLR2004", "T201"]
+
+[tool.ruff.flake8-tidy-imports]
+ban-relative-imports = "all"
