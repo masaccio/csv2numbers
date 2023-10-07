@@ -3,12 +3,14 @@ name = "automator-scripts"
 version = "1.0.0"
 description = "Automator scripts"
 authors = ["Jon Connell <python@figsandfudge.com>"]
-readme = "README.md"
-packages = [{include = "automator_scripts"}]
+packages = [{include = "csv2numbers"}]
 repository = "https://github.com/masaccio/automator-scripts"
 
+[tool.poetry.scripts]
+csv2numbers = "csv2numbers:main"
+
 [tool.poetry.dependencies]
-python = ">=3.11,<3.13"
+python = ">=3.9,<3.13"
 numbers-parser = "^4.4.6"
 pandas = "^2.1.1"
 
@@ -21,9 +23,10 @@ profile = "black"
 
 [tool.ruff]
 fix = true
+line-length = 100
 select = ["ALL"]
-target-version = "py311"
-ignore = ["PLR2004", "T201"]
+target-version = "py38"
+ignore = ["PLR2004", "T201", "PTH123"]
 
 [tool.ruff.flake8-tidy-imports]
 ban-relative-imports = "all"
