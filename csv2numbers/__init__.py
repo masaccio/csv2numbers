@@ -56,6 +56,8 @@ def read_csv_file(args: argparse.Namespace) -> pd.DataFrame:
         )
     except FileNotFoundError:
         fatal_error(f"{args.csvfile}: file not found")
+    except pd.errors.ParserError as e:
+        fatal_error(f"{args.csvfile}: {e.args[0]}")
     return data
 
 
@@ -250,6 +252,11 @@ def parse_command_line() -> argparse.Namespace:
         metavar="MAPPING",
         help="transform values of columns into new columns; see docs for details",
     )
+    parser.add_argument(
+        "--output",
+        metavar="FILENAME",
+        help="output filename (default: use source file with .numbers)",
+    )
     return parser.parse_args()
 
 
@@ -262,9 +269,11 @@ def main() -> None:
     data = rename_columns(data, args.rename)
     data = delete_columns(data, args.delete)
 
-    print(data)
-
-    write_output(data, Path(args.csvfile).with_suffix(".numbers"))
+    if args.output is None:
+        output_filename = Path(args.csvfile).with_suffix(".numbers")
+    else:
+        output_filename = args.output
+    write_output(data, output_filename)
 
 
 if __name__ == "__main__":
