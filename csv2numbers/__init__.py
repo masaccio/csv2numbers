@@ -1,18 +1,14 @@
 """Convert a First Direct CSV export into a formatted Numbers document."""
+from __future__ import annotations
 
 import argparse
 import re
 from pathlib import Path
 from sys import exit, stderr
+from typing import tuple
 
 import pandas as pd
 from numbers_parser import Document
-
-
-def filter_positive(x: str) -> str:
-    """Return positive values or None."""
-    value = float(x)
-    return None if value < 0.0 else value
 
 
 def filter_negative(x: str) -> str:
@@ -89,12 +85,17 @@ def parse_column_map_strings(data: pd.DataFrame, map_strings: list) -> dict:
 
 def rename_columns(data: pd.DataFrame, map_strings: list) -> pd.DataFrame:
     """Rename columns using column map."""
+    if map_strings is None:
+        return data
     column_map = parse_column_map_strings(data, map_strings)
     return data.rename(columns=column_map)
 
 
 def delete_columns(data: pd.DataFrame, columns: list) -> pd.DataFrame:
     """Delete columns from the data."""
+    if columns is None:
+        return data
+
     columns_to_delete = []
     for column in columns:
         if column.isnumeric():
@@ -111,15 +112,18 @@ def delete_columns(data: pd.DataFrame, columns: list) -> pd.DataFrame:
     return data
 
 
-def merge_row(row: pd.Series, source: str, dest: str) -> pd.Series:
-    """Merge data in a single row."""
+def col_names_for_transform(row: pd.Series, source: str, dest: str) -> tuple[str, str]:
+    """Convert column name strings to pandas column names."""
     dest_col = int(dest) if dest.isnumeric() else dest
-    if dest_col not in row:
-        fatal_error(f"{dest}: merge failed due to missing column")
     source_cols = [int(x) if x.isnumeric() else x for x in source.split(",")]
     if not all(x in row for x in source_cols):
-        fatal_error(f"{source}: merge failed due to missing column(s)")
+        fatal_error(f"merge failed: {source} does not exist in CSV")
+    return (dest_col, source_cols)
 
+
+def merge_row(row: pd.Series, source: str, dest: str) -> pd.Series:
+    """Merge data in a single row."""
+    (dest_col, source_cols) = col_names_for_transform(row, source, dest)
     value = ""
     for col in source_cols:
         if row[col] and not value:
@@ -129,13 +133,45 @@ def merge_row(row: pd.Series, source: str, dest: str) -> pd.Series:
 
 
 def merge_transform(data: pd.DataFrame, source: str, dest: str) -> pd.DataFrame:
-    """Apply a merge to multiple columns."""
+    """Column transform to merge columns."""
     return data.apply(lambda row: merge_row(row, source, dest), axis=1)
+
+
+def negative_values(row: pd.Series, source: str, dest: str) -> pd.Series:
+    """Select negative values for a row."""
+    (dest_col, source_cols) = col_names_for_transform(row, source, dest)
+    value = ""
+    for col in source_cols:
+        if row[col] and not value and float(row[col]) < 0:
+            value = abs(float(row[col]))
+    row[dest_col] = value
+    return row
+
+
+def neg_transform(data: pd.DataFrame, source: str, dest: str) -> pd.DataFrame:
+    """Column transform to select negative numbers."""
+    return data.apply(lambda row: negative_values(row, source, dest), axis=1)
+
+
+def positive_values(row: pd.Series, source: str, dest: str) -> pd.Series:
+    """Select positive values for a row."""
+    (dest_col, source_cols) = col_names_for_transform(row, source, dest)
+    value = ""
+    for col in source_cols:
+        if row[col] and not value and float(row[col]) > 0:
+            value = float(row[col])
+    row[dest_col] = value
+    return row
+
+
+def pos_transform(data: pd.DataFrame, source: str, dest: str) -> pd.DataFrame:
+    """Column transform to select positive numbers."""
+    return data.apply(lambda row: positive_values(row, source, dest), axis=1)
 
 
 def apply_transform(data: pd.DataFrame, transform: str) -> pd.DataFrame:
     """Transform columns with a function."""
-    m = re.match(r"(\S+)=(\w+):(\S+)", transform)
+    m = re.match(r"(.+)=(\w+):(.+)", transform)
     if not m:
         fatal_error(f"{transform}: invalid transformation format")
     dest = m.group(1)
