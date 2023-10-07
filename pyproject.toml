@@ -17,6 +17,7 @@ pandas = "^2.1.1"
 [tool.poetry.group.dev.dependencies]
 pytest-console-scripts = "^1.4.1"
 pytest-cov = "^4.1.0"
+pytest-xdist = "^3.3.1"
 
 [build-system]
 requires = ["poetry-core"]
@@ -30,8 +31,8 @@ directory = "coverage_html_report"
 show_contexts = true
 
 [tool.pytest.ini_options]
-addopts = "--cov=csv2numbers --cov-report=html --cov-report=term-missing:skip-covered --cov-context=test"
-
+addopts = "-p no:warnings --cov=csv2numbers --cov-report=html --cov-report=term-missing:skip-covered --cov-context=test"
+script_launch_mode = "subprocess"
 
 [tool.isort]
 profile = "black"
