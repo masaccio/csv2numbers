@@ -11,19 +11,6 @@ import pandas as pd
 from numbers_parser import Document
 
 
-def filter_negative(x: str) -> str:
-    """Return absolute values if less than zero or None."""
-    value = float(x)
-    return None if value > 0.0 else abs(value)
-
-
-def filter_whitespace(x: str) -> str:
-    """Strip and collapse whitespace."""
-    if isinstance(x, str):
-        return re.sub(r"\s+", " ", x.strip())
-    return x
-
-
 def write_output(data: pd.DataFrame, filename: str) -> None:
     """Write dataframe transctions to a Numbers file."""
     doc = Document(num_rows=2, num_cols=2)
@@ -182,6 +169,13 @@ def apply_transform(data: pd.DataFrame, transform: str) -> pd.DataFrame:
     if func not in globals():
         fatal_error(f"{m.group(2)}: invalid transformation")
     return globals()[func](data, source, dest)
+
+
+def filter_whitespace(x: str) -> str:
+    """Strip and collapse whitespace."""
+    if isinstance(x, str):
+        return re.sub(r"\s+", " ", x.strip())
+    return x
 
 
 def transform_data(data: pd.DataFrame, args: argparse.Namespace) -> pd.DataFrame:
