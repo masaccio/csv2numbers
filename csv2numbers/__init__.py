@@ -8,8 +8,6 @@ from sys import exit, stderr
 import pandas as pd
 from numbers_parser import Document
 
-CSV_SAMPLE_LENGTH = 8192
-
 
 def filter_positive(x: str) -> str:
     """Return positive values or None."""
@@ -56,9 +54,9 @@ def read_csv_file(args: argparse.Namespace) -> pd.DataFrame:
     try:
         data = pd.read_csv(
             args.csvfile,
+            dayfirst=args.day_first,
             header=header,
             parse_dates=parse_dates,
-            dayfirst=args.day_first,
         )
     except FileNotFoundError:
         fatal_error(f"{args.csvfile}: file not found")
@@ -113,8 +111,44 @@ def delete_columns(data: pd.DataFrame, columns: list) -> pd.DataFrame:
     return data
 
 
+def merge_row(row: pd.Series, source: str, dest: str) -> pd.Series:
+    """Merge data in a single row."""
+    dest_col = int(dest) if dest.isnumeric() else dest
+    if dest_col not in row:
+        fatal_error(f"{dest}: merge failed due to missing column")
+    source_cols = [int(x) if x.isnumeric() else x for x in source.split(",")]
+    if not all(x in row for x in source_cols):
+        fatal_error(f"{source}: merge failed due to missing column(s)")
+
+    value = ""
+    for col in source_cols:
+        if row[col] and not value:
+            value = row[col]
+    row[dest_col] = value
+    return row
+
+
+def merge_transform(data: pd.DataFrame, source: str, dest: str) -> pd.DataFrame:
+    """Apply a merge to multiple columns."""
+    return data.apply(lambda row: merge_row(row, source, dest), axis=1)
+
+
+def apply_transform(data: pd.DataFrame, transform: str) -> pd.DataFrame:
+    """Transform columns with a function."""
+    m = re.match(r"(\S+)=(\w+):(\S+)", transform)
+    if not m:
+        fatal_error(f"{transform}: invalid transformation format")
+    dest = m.group(1)
+    func = m.group(2).lower() + "_transform"
+    source = m.group(3)
+    if func not in globals():
+        fatal_error(f"{m.group(2)}: invalid transformation")
+    return globals()[func](data, source, dest)
+
+
 def transform_data(data: pd.DataFrame, args: argparse.Namespace) -> pd.DataFrame:
     """Perform any data transformations."""
+    data = data.fillna("")
     for column in data.columns:
         if args.whitespace:
             data[column] = data[column].apply(func=filter_whitespace)
@@ -122,7 +156,10 @@ def transform_data(data: pd.DataFrame, args: argparse.Namespace) -> pd.DataFrame
         data = data.iloc[::-1]
         data = data.reset_index(drop=True)
 
-    return data.fillna("")
+    for func in args.transform:
+        data = apply_transform(data, func)
+
+    return data
 
 
 def parse_command_line() -> argparse.Namespace:
@@ -184,9 +221,9 @@ def main() -> None:
     args = parse_command_line()
 
     data = read_csv_file(args)
-    data = delete_columns(data, args.delete)
-    data = rename_columns(data, args.rename)
     data = transform_data(data, args)
+    data = rename_columns(data, args.rename)
+    data = delete_columns(data, args.delete)
 
     print(data)
 
