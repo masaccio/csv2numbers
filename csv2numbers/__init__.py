@@ -5,7 +5,7 @@ import argparse
 import re
 from pathlib import Path
 from sys import exit, stderr
-from typing import tuple
+from typing import Tuple  # noqa: F401
 
 import pandas as pd
 from numbers_parser import Document
@@ -192,8 +192,9 @@ def transform_data(data: pd.DataFrame, args: argparse.Namespace) -> pd.DataFrame
         data = data.iloc[::-1]
         data = data.reset_index(drop=True)
 
-    for func in args.transform:
-        data = apply_transform(data, func)
+    if args.transform is not None:
+        for transform in args.transform:
+            data = apply_transform(data, transform)
 
     return data
 
