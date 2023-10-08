@@ -1,10 +1,11 @@
 [tool.poetry]
-name = "automator-scripts"
+name = "csv2numbers"
 version = "1.0.0"
 description = "Automator scripts"
 authors = ["Jon Connell <python@figsandfudge.com>"]
 packages = [{include = "csv2numbers"}]
-repository = "https://github.com/masaccio/automator-scripts"
+readme = "README.md"
+repository = "https://github.com/masaccio/csv2numbers"
 
 [tool.poetry.scripts]
 csv2numbers = "csv2numbers:main"
