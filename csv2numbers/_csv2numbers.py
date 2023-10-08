@@ -304,7 +304,8 @@ def main() -> None:
         print(_get_version())
         exit(0)
     elif len(args.csvfile) == 0:
-        parser.print_help()
+        print("At least one CSV file is required", file=stderr)
+        parser.print_help(stderr)
         exit(1)
 
     if args.output is None:
