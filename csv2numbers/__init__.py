@@ -140,6 +140,7 @@ def transform_columns(
     """Perform column transformationstransformations."""
     for transform in columns:
         transform.func(data, transform.source, transform.dest)
+    return data
 
 
 def filter_whitespace(x: str) -> str:
@@ -182,6 +183,7 @@ def parse_column_renames(arg: str) -> dict:
                 msg = f"'{mapping}': column rename maps must be formatted 'OLD:NEW'"
                 raise argparse.ArgumentTypeError(msg)
             (old, new) = mapping.split(":")
+            old = int(old) if old.isnumeric() else old
             mapper[old] = new
     except csv.Error as e:
         msg = f"'{arg}': malformed CSV string"
