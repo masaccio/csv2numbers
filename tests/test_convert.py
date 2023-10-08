@@ -100,7 +100,68 @@ def test_transforms_1(script_runner, tmp_path) -> None:
     assert table.cell(4, 3).value == 20.4
 
 
-def test_transforms_2(script_runner, tmp_path) -> None:
+def test_transforms_format_1(script_runner, tmp_path) -> None:
+    """Test conversion with transformation."""
+    csv_path = str(tmp_path / "format-1.csv")
+    shutil.copy("tests/data/format-1.csv", csv_path)
+
+    ret = script_runner.run(
+        [
+            "csv2numbers",
+            "--whitespace",
+            "--day-first",
+            "--date=Date",
+            "--delete=Card Member,Account #",
+            csv_path,
+        ],
+        print_result=False,
+    )
+    assert ret.success
+    assert ret.stdout == ""
+    assert ret.stderr == ""
+    numbers_path = Path(csv_path).with_suffix(".numbers")
+    assert numbers_path.exists()
+
+    doc = Document(str(numbers_path))
+    table = doc.sheets[0].tables[0]
+    assert table.cell(1, 1).value == "GROCERY STORE LONDON"
+    assert str(table.cell(2, 0).value) == "2008-04-05T00:00:00+00:00"
+    assert table.cell(8, 2).value == 14.99
+
+
+def test_transforms_format_2(script_runner, tmp_path) -> None:
+    """Test conversion with transformation."""
+    csv_path = str(tmp_path / "format-2.csv")
+    shutil.copy("tests/data/format-2.csv", csv_path)
+
+    ret = script_runner.run(
+        [
+            "csv2numbers",
+            "--whitespace",
+            "--day-first",
+            "--date=Date",
+            "--transform=Paid In=POS:Amount,Withdrawn=NEG:Amount",
+            "--delete=Amount,Balance",
+            csv_path,
+        ],
+        print_result=False,
+    )
+    assert ret.success
+    assert ret.stdout == ""
+    assert ret.stderr == ""
+    numbers_path = Path(csv_path).with_suffix(".numbers")
+    assert numbers_path.exists()
+
+    doc = Document(str(numbers_path))
+    table = doc.sheets[0].tables[0]
+    assert table.cell(0, 2).value == "Paid In"
+    assert table.cell(0, 3).value == "Withdrawn"
+    assert table.cell(1, 3).value == 1.4
+    assert table.cell(3, 2).value == 10.0
+    assert str(table.cell(3, 0).value) == "2003-02-04T00:00:00+00:00"
+
+
+def test_transforms_format_3(script_runner, tmp_path) -> None:
     """Test conversion with transformation."""
     csv_path = str(tmp_path / "format-3.csv")
     shutil.copy("tests/data/format-3.csv", csv_path)
@@ -108,18 +169,13 @@ def test_transforms_2(script_runner, tmp_path) -> None:
     ret = script_runner.run(
         [
             "csv2numbers",
-            "--no-header",
-            "--rename=0:Date",
-            "--rename=1:Transaction",
-            "--rename=6:Amount",
-            "--delete=2",
-            "--delete=3",
-            "--delete=4",
-            "--delete=5",
-            "--whitespace",
-            "--day-first",
+            "--delete=2,3,4,5",
             "--date=0",
+            "--day-first",
+            "--no-header",
+            "--rename=0:Date,1:Transaction,6:Amount",
             "--transform=6=MERGE:5,6",
+            "--whitespace",
             csv_path,
         ],
         print_result=False,
@@ -127,12 +183,12 @@ def test_transforms_2(script_runner, tmp_path) -> None:
 
     assert ret.success
     numbers_path = Path(csv_path).with_suffix(".numbers")
-
     assert numbers_path.exists()
+
     doc = Document(str(numbers_path))
     table = doc.sheets[0].tables[0]
     assert table.cell(5, 1).value == "AutoShop.com"
     assert str(table.cell(7, 0).value) == "2023-09-26T00:00:00+00:00"
     assert table.cell(0, 1).value == "Transaction"
     assert table.cell(0, 2).value == "Amount"
-    assert table.cell(7, 2).value == "-1,283.72"
+    assert table.cell(7, 2).value == -1283.72
