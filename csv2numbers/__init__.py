@@ -29,6 +29,8 @@ def rename_columns(data: pd.DataFrame, mapper: dict) -> pd.DataFrame:
 
 def delete_columns(data: pd.DataFrame, columns: list) -> pd.DataFrame:
     """Delete columns from the data."""
+    if columns is None:
+        return data
     try:
         index_to_name = dict(enumerate(data.columns))
         columns_to_delete = [
@@ -126,6 +128,7 @@ def reformat_data(
     for column in data.columns:
         if whitespace:
             data[column] = data[column].apply(func=filter_whitespace)
+
     if reverse:
         data = data.iloc[::-1]
         data = data.reset_index(drop=True)
@@ -237,6 +240,7 @@ def parse_command_line() -> argparse.Namespace:
         help="comma-separated list of column names/indexes to delete",
     )
     parser.add_argument(
+        "-o",
         "--output",
         metavar="FILENAME",
         help="output filename (default: use source file with .numbers)",
