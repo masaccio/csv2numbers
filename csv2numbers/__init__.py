@@ -56,12 +56,6 @@ def read_csv_file(args: argparse.Namespace) -> pd.DataFrame:
     return data
 
 
-def fatal_error(error: str) -> None:
-    """Print a fatal error message and exit."""
-    print(error, file=stderr)
-    exit(1)
-
-
 def rename_columns(data: pd.DataFrame, mapper: dict) -> pd.DataFrame:
     """Rename columns using column map."""
     return data.rename(columns=mapper)
