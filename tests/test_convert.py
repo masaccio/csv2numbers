@@ -3,6 +3,7 @@
 import shutil
 from pathlib import Path
 
+import pytest
 from numbers_parser import Document
 
 
@@ -10,7 +11,7 @@ def test_help(script_runner) -> None:
     """Test conversion with no transforms."""
     ret = script_runner.run(["csv2numbers"], print_result=False)
     assert not ret.success
-    assert "the following arguments are required" in ret.stderr
+    assert "At least one CSV file is required" in ret.stderr
 
     ret = script_runner.run(["csv2numbers", "--help"], print_result=False)
     assert ret.success
@@ -34,6 +35,7 @@ def test_defaults(script_runner, tmp_path) -> None:
     assert table.cell(3, 1).value == "GROCERY STORE        LONDON"
 
 
+@pytest.mark.script_launch_mode("subprocess")
 def test_errors(script_runner) -> None:
     """Test error detection in command line."""
     ret = script_runner.run(
@@ -55,6 +57,7 @@ def test_errors(script_runner) -> None:
     assert "'FUNC': invalid transformation" in ret.stderr
 
 
+@pytest.mark.script_launch_mode("subprocess")
 def test_parse_error(script_runner) -> None:
     """Test conversion with no transforms."""
     ret = script_runner.run(
@@ -80,9 +83,9 @@ def test_transforms_format_1(script_runner, tmp_path) -> None:
         ],
         print_result=False,
     )
-    assert ret.success
     assert ret.stdout == ""
     assert ret.stderr == ""
+    assert ret.success
     numbers_path = Path(csv_path).with_suffix(".numbers")
     assert numbers_path.exists()
 
@@ -110,9 +113,9 @@ def test_transforms_format_2(script_runner, tmp_path) -> None:
         ],
         print_result=False,
     )
-    assert ret.success
     assert ret.stdout == ""
     assert ret.stderr == ""
+    assert ret.success
     numbers_path = Path(csv_path).with_suffix(".numbers")
     assert numbers_path.exists()
 
@@ -138,13 +141,15 @@ def test_transforms_format_3(script_runner, tmp_path) -> None:
             "--day-first",
             "--no-header",
             "--rename=0:Date,1:Transaction,6:Amount",
-            "--transform=6=MERGE:5,6",
+            "--transform=6=MERGE:5;6",
             "--whitespace",
             csv_path,
         ],
         print_result=False,
     )
 
+    assert ret.stdout == ""
+    assert ret.stderr == ""
     assert ret.success
     numbers_path = Path(csv_path).with_suffix(".numbers")
     assert numbers_path.exists()
