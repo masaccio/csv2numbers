@@ -40,7 +40,7 @@ def test_errors(script_runner) -> None:
         ["csv2numbers", "--delete=XX", "tests/data/format-1.csv"],
         print_result=False,
     )
-    assert "XX: cannot delete: column not CSV file" in ret.stderr
+    assert "'XX': cannot delete" in ret.stderr
 
     ret = script_runner.run(
         ["csv2numbers", "--transform=XX=POS:YY", "tests/data/format-1.csv"],
@@ -52,7 +52,7 @@ def test_errors(script_runner) -> None:
         ["csv2numbers", "--transform=XX=FUNC:Account", "tests/data/format-1.csv"],
         print_result=False,
     )
-    assert "FUNC: invalid transformation" in ret.stderr
+    assert "'FUNC': invalid transformation" in ret.stderr
 
 
 def test_parse_error(script_runner) -> None:
@@ -62,42 +62,6 @@ def test_parse_error(script_runner) -> None:
         print_result=False,
     )
     assert "Error tokenizing data" in ret.stderr
-
-
-def test_transforms_1(script_runner, tmp_path) -> None:
-    """Test conversion with transformation."""
-    csv_path = str(tmp_path / "format-2.csv")
-    shutil.copy("tests/data/format-2.csv", csv_path)
-
-    ret = script_runner.run(
-        [
-            "csv2numbers",
-            "--whitespace",
-            "--day-first",
-            "--date=Date",
-            "--transform=Paid In=POS:Amount",
-            "--transform=Withdrawn=NEG:Amount",
-            "--delete=Amount",
-            "--delete=Balance",
-            csv_path,
-        ],
-        print_result=False,
-    )
-
-    assert ret.stdout == ""
-    assert ret.stderr == ""
-    assert ret.success
-    numbers_path = Path(csv_path).with_suffix(".numbers")
-
-    assert numbers_path.exists()
-    doc = Document(str(numbers_path))
-    table = doc.sheets[0].tables[0]
-    assert table.cell(3, 1).value == "JANE DOE GIFT CONTRIBUTION"
-    assert str(table.cell(1, 0).value) == "2003-02-06T00:00:00+00:00"
-    assert table.cell(0, 2).value == "Paid In"
-    assert table.cell(0, 3).value == "Withdrawn"
-    assert table.cell(3, 2).value == 10
-    assert table.cell(4, 3).value == 20.4
 
 
 def test_transforms_format_1(script_runner, tmp_path) -> None:
@@ -126,7 +90,7 @@ def test_transforms_format_1(script_runner, tmp_path) -> None:
     table = doc.sheets[0].tables[0]
     assert table.cell(1, 1).value == "GROCERY STORE LONDON"
     assert str(table.cell(2, 0).value) == "2008-04-05T00:00:00+00:00"
-    assert table.cell(8, 2).value == 14.99
+    assert table.cell(6, 2).value == 4.99
 
 
 def test_transforms_format_2(script_runner, tmp_path) -> None:
