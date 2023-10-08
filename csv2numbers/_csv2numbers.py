@@ -42,7 +42,7 @@ def delete_columns(data: pd.DataFrame, columns: list) -> pd.DataFrame:
         data = data.drop(columns=columns_to_delete)
     except KeyError:
         msg = "'" + "', '".join([str(x) for x in columns]) + "'"
-        msg += ": cannot delete: column(s) not CSV file"
+        msg += ": cannot delete: column(s) do not exist in CSV"
         raise RuntimeError(msg) from None
     return data
 
@@ -52,7 +52,7 @@ def col_names_for_transform(row: pd.Series, source: str, dest: str) -> tuple[str
     dest_col = int(dest) if dest.isnumeric() else dest
     source_cols = [int(x) if x.isnumeric() else x for x in source.split(";")]
     if not all(x in row for x in source_cols):
-        msg = f"merge failed: {source} does not exist in CSV"
+        msg = f"merge failed: '{source}' does not exist in CSV"
         raise RuntimeError(msg)
     return (dest_col, source_cols)
 
@@ -142,7 +142,9 @@ def reformat_data(
 def parse_columns(arg: str) -> list:
     """Parse a list of column names in Excel-compatible CSV format."""
     try:
-        return [int(x) if x.isnumeric() else x for x in next(csv.reader([arg]))]
+        return [
+            int(x) if x.isnumeric() else x for x in next(csv.reader([arg], strict=True))
+        ]
     except csv.Error as e:
         msg = f"'{arg}': can't parse argument"
         raise argparse.ArgumentTypeError(msg) from e
@@ -152,7 +154,7 @@ def parse_column_renames(arg: str) -> dict:
     """Parse a list of column renames in Excel-compatible CSV format."""
     mapper = {}
     try:
-        for mapping in next(csv.reader([arg])):
+        for mapping in next(csv.reader([arg], strict=True)):
             if mapping.count(":") != 1:
                 msg = f"'{mapping}': column rename maps must be formatted 'OLD:NEW'"
                 raise argparse.ArgumentTypeError(msg)
@@ -170,7 +172,7 @@ def parse_column_transforms(arg: str) -> list[ColumnTransform]:
     """Parse a list of column renames in Excel-compatible CSV format."""
     transforms = []
     try:
-        for transform in next(csv.reader([arg])):
+        for transform in next(csv.reader([arg], strict=True)):
             m = re.match(r"(.+)=(\w+):(.+)", transform)
             if not m:
                 msg = f"'{transform}': invalid transformation format"
