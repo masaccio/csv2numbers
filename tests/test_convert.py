@@ -62,13 +62,43 @@ def test_errors(script_runner) -> None:
         ["csv2numbers", "--transform=XX=POS:YY", "tests/data/format-1.csv"],
         print_result=False,
     )
-    assert "merge failed: YY does not exist in CSV" in ret.stderr
+    assert "merge failed: 'YY' does not exist in CSV" in ret.stderr
 
     ret = script_runner.run(
         ["csv2numbers", "--transform=XX=FUNC:Account", "tests/data/format-1.csv"],
         print_result=False,
     )
     assert "'FUNC': invalid transformation" in ret.stderr
+
+    ret = script_runner.run(
+        ["csv2numbers", '--rename=Foo«bar,"a,b'],
+        print_result=False,
+    )
+    assert "malformed CSV string" in ret.stderr
+
+    ret = script_runner.run(
+        ["csv2numbers", "--rename=foo"],
+        print_result=False,
+    )
+    assert "column rename maps must be formatted" in ret.stderr
+
+    ret = script_runner.run(
+        ["csv2numbers", '--delete=Foo«bar,"a,b'],
+        print_result=False,
+    )
+    assert "can't parse argument" in ret.stderr
+
+    ret = script_runner.run(
+        ["csv2numbers", '--transform=Foo«bar,"a,b'],
+        print_result=False,
+    )
+    assert "malformed CSV string" in ret.stderr
+
+    ret = script_runner.run(
+        ["csv2numbers", "not-exists.csv"],
+        print_result=False,
+    )
+    assert "not-exists.csv: file not found" in ret.stderr
 
 
 @pytest.mark.script_launch_mode("subprocess")
