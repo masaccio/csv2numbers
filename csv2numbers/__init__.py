@@ -2,13 +2,22 @@
 from __future__ import annotations
 
 import argparse
+import csv
 import re
 from pathlib import Path
 from sys import exit, stderr
-from typing import Tuple  # noqa: F401
+from typing import NamedTuple, Tuple  # noqa: F401
 
 import pandas as pd
 from numbers_parser import Document
+
+
+class ColumnTransform(NamedTuple):
+    """Class for holding a column transformation rule."""
+
+    source: list[str]
+    dest: str
+    func: callable
 
 
 def write_output(data: pd.DataFrame, filename: str) -> None:
@@ -30,10 +39,7 @@ def write_output(data: pd.DataFrame, filename: str) -> None:
 def read_csv_file(args: argparse.Namespace) -> pd.DataFrame:
     """Parse CSV file with Pandas and return a dataframe."""
     header = None if args.no_header else 0
-    if args.date is not None:
-        parse_dates = [int(x) if x.isnumeric() else x for x in args.date]
-    else:
-        parse_dates = False
+    parse_dates = args.date if args.date is not None else False
     try:
         data = pd.read_csv(
             args.csvfile,
@@ -41,10 +47,12 @@ def read_csv_file(args: argparse.Namespace) -> pd.DataFrame:
             header=header,
             parse_dates=parse_dates,
         )
-    except FileNotFoundError:
-        fatal_error(f"{args.csvfile}: file not found")
+    except FileNotFoundError as e:
+        msg = f"{args.csvfile}: file not found"
+        raise RuntimeError(msg) from e
     except pd.errors.ParserError as e:
-        fatal_error(f"{args.csvfile}: {e.args[0]}")
+        msg = f"{args.csvfile}: {e.args[0]}"
+        raise RuntimeError(msg) from e
     return data
 
 
@@ -54,59 +62,33 @@ def fatal_error(error: str) -> None:
     exit(1)
 
 
-def parse_column_map_strings(data: pd.DataFrame, map_strings: list) -> dict:
-    """Parse and validate a list of column mappings and return as a dict."""
-    mapping = {}
-    try:
-        for map_string in map_strings:
-            (k, v) = map_string.split(":")
-            if not k or not v:
-                fatal_error(f"{map_string}: invalid column rename format")
-            if k.isnumeric():
-                k = int(k)
-            if k not in data.columns:
-                fatal_error(f"{k}: column does not exist")
-            mapping[k] = v
-    except ValueError:
-        fatal_error(f"{map_string}: invalid column rename format")
-    return mapping
-
-
-def rename_columns(data: pd.DataFrame, map_strings: list) -> pd.DataFrame:
+def rename_columns(data: pd.DataFrame, mapper: dict) -> pd.DataFrame:
     """Rename columns using column map."""
-    if map_strings is None:
-        return data
-    column_map = parse_column_map_strings(data, map_strings)
-    return data.rename(columns=column_map)
+    return data.rename(columns=mapper)
 
 
 def delete_columns(data: pd.DataFrame, columns: list) -> pd.DataFrame:
     """Delete columns from the data."""
-    if columns is None:
-        return data
-
-    columns_to_delete = []
-    for column in columns:
-        if column.isnumeric():
-            if int(column) not in data.columns:
-                fatal_error(f"{column}: cannot delete: column not CSV file")
-            columns_to_delete.append(int(column))
-        elif column not in data.columns:
-            fatal_error(f"{column}: cannot delete: column not CSV file")
-        else:
-            columns_to_delete.append(column)
-
-    if len(columns_to_delete) > 0:
-        return data.drop(columns=columns_to_delete)
+    try:
+        index_to_name = dict(enumerate(data.columns))
+        columns_to_delete = [
+            index_to_name[x] if isinstance(x, int) else x for x in columns
+        ]
+        data = data.drop(columns=columns_to_delete)
+    except KeyError:
+        msg = "'" + "', '".join([str(x) for x in columns]) + "'"
+        msg += ": cannot delete: column(s) not CSV file"
+        raise RuntimeError(msg) from None
     return data
 
 
 def col_names_for_transform(row: pd.Series, source: str, dest: str) -> tuple[str, str]:
     """Convert column name strings to pandas column names."""
     dest_col = int(dest) if dest.isnumeric() else dest
-    source_cols = [int(x) if x.isnumeric() else x for x in source.split(",")]
+    source_cols = [int(x) if x.isnumeric() else x for x in source.split(";")]
     if not all(x in row for x in source_cols):
-        fatal_error(f"merge failed: {source} does not exist in CSV")
+        msg = f"merge failed: {source} does not exist in CSV"
+        raise RuntimeError(msg)
     return (dest_col, source_cols)
 
 
@@ -158,17 +140,12 @@ def pos_transform(data: pd.DataFrame, source: str, dest: str) -> pd.DataFrame:
     return data.apply(lambda row: positive_values(row, source, dest), axis=1)
 
 
-def apply_transform(data: pd.DataFrame, transform: str) -> pd.DataFrame:
-    """Transform columns with a function."""
-    m = re.match(r"(.+)=(\w+):(.+)", transform)
-    if not m:
-        fatal_error(f"{transform}: invalid transformation format")
-    dest = m.group(1)
-    func = m.group(2).lower() + "_transform"
-    source = m.group(3)
-    if func not in globals():
-        fatal_error(f"{m.group(2)}: invalid transformation")
-    return globals()[func](data, source, dest)
+def transform_columns(
+    data: pd.DataFrame, columns: list[ColumnTransform]  # noqa: COM812
+) -> pd.DataFrame:
+    """Perform column transformationstransformations."""
+    for transform in columns:
+        transform.func(data, transform.source, transform.dest)
 
 
 def filter_whitespace(x: str) -> str:
@@ -178,21 +155,68 @@ def filter_whitespace(x: str) -> str:
     return x
 
 
-def transform_data(data: pd.DataFrame, args: argparse.Namespace) -> pd.DataFrame:
-    """Perform any data transformations."""
+def reformat_data(
+    data: pd.DataFrame, *, whitespace: bool, reverse: bool  # noqa: COM812
+) -> pd.DataFrame:
+    """Apply data corrections to tabls."""
     data = data.fillna("")
     for column in data.columns:
-        if args.whitespace:
+        if whitespace:
             data[column] = data[column].apply(func=filter_whitespace)
-    if args.reverse:
+    if reverse:
         data = data.iloc[::-1]
         data = data.reset_index(drop=True)
 
-    if args.transform is not None:
-        for transform in args.transform:
-            data = apply_transform(data, transform)
-
     return data
+
+
+def parse_columns(arg: str) -> list:
+    """Parse a list of column names in Excel-compatible CSV format."""
+    try:
+        return [int(x) if x.isnumeric() else x for x in next(csv.reader([arg]))]
+    except csv.Error as e:
+        msg = f"'{arg}': can't parse argument"
+        raise argparse.ArgumentTypeError(msg) from e
+
+
+def parse_column_renames(arg: str) -> dict:
+    """Parse a list of column renames in Excel-compatible CSV format."""
+    mapper = {}
+    try:
+        for mapping in next(csv.reader([arg])):
+            if mapping.count(":") != 1:
+                msg = f"'{mapping}': column rename maps must be formatted 'OLD:NEW'"
+                raise argparse.ArgumentTypeError(msg)
+            (old, new) = mapping.split(":")
+            mapper[old] = new
+    except csv.Error as e:
+        msg = f"'{arg}': malformed CSV string"
+        raise argparse.ArgumentTypeError(msg) from e
+    else:
+        return mapper
+
+
+def parse_column_transforms(arg: str) -> list[ColumnTransform]:
+    """Parse a list of column renames in Excel-compatible CSV format."""
+    transforms = []
+    try:
+        for transform in next(csv.reader([arg])):
+            m = re.match(r"(.+)=(\w+):(.+)", transform)
+            if not m:
+                msg = f"'{transform}': invalid transformation format"
+                raise argparse.ArgumentTypeError(msg)
+            dest = m.group(1)
+            func = m.group(2).lower() + "_transform"
+            source = m.group(3)
+            if func not in globals():
+                msg = f"'{m.group(2)}': invalid transformation"
+                raise argparse.ArgumentTypeError(msg)
+            transforms.append(ColumnTransform(source, dest, globals()[func]))
+    except csv.Error as e:
+        msg = f"'{arg}': malformed CSV string"
+        raise argparse.ArgumentTypeError(msg) from e
+    else:
+        return transforms
 
 
 def parse_command_line() -> argparse.Namespace:
@@ -225,26 +249,28 @@ def parse_command_line() -> argparse.Namespace:
         help="dates are represented day first in the CSV file (default: false)",
     )
     parser.add_argument(
-        "--delete",
-        action="append",
-        help="delete the named column; can be repeated",
-    )
-    parser.add_argument(
         "--date",
-        action="append",
-        help="parse the named column as a date; can be repeated",
+        metavar="COLUMNS",
+        type=parse_columns,
+        help="comma-separated list of column names/indexes to parse as dates",
     )
     parser.add_argument(
         "--rename",
-        action="append",
-        metavar="MAPPING",
-        help="rename named column using the mapping format 'OLD:NEW'; can be repeated",
+        metavar="COLUMNS-MAP",
+        type=parse_column_renames,
+        help="comma-separated list of column names/indexes to renamed as 'OLD:NEW'",
     )
     parser.add_argument(
         "--transform",
-        action="append",
-        metavar="MAPPING",
-        help="transform values of columns into new columns; see docs for details",
+        metavar="COLUMNS-MAP",
+        type=parse_column_transforms,
+        help="comma-separated list of column names/indexes to transform as 'NEW:FUNC=OLD'",
+    )
+    parser.add_argument(
+        "--delete",
+        metavar="COLUMNS",
+        type=parse_columns,
+        help="comma-separated list of column names/indexes to delete",
     )
     parser.add_argument(
         "--output",
@@ -258,16 +284,21 @@ def main() -> None:
     """Convert the document and exit."""
     args = parse_command_line()
 
-    data = read_csv_file(args)
-    data = transform_data(data, args)
-    data = rename_columns(data, args.rename)
-    data = delete_columns(data, args.delete)
+    try:
+        data = read_csv_file(args)
+        data = reformat_data(data, whitespace=args.whitespace, reverse=args.reverse)
+        data = transform_columns(data, args.transform)
+        data = rename_columns(data, args.rename)
+        data = delete_columns(data, args.delete)
 
-    if args.output is None:
-        output_filename = Path(args.csvfile).with_suffix(".numbers")
-    else:
-        output_filename = args.output
-    write_output(data, output_filename)
+        if args.output is None:
+            output_filename = Path(args.csvfile).with_suffix(".numbers")
+        else:
+            output_filename = args.output
+        write_output(data, output_filename)
+    except RuntimeError as e:
+        print(e, file=stderr)
+        exit(1)
 
 
 if __name__ == "__main__":
