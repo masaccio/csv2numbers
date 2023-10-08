@@ -6,6 +6,16 @@
 
 `csv2numbers` is a command-line utility to convert CSV files to Apple Numbers spreadsheets.
 
+## Installation
+
+The script is best installed using pip:
+
+``` text
+python3 -m pip install csv2numbers
+```
+
+You may need to install `numbers-parser` first including `python-snappy` according to the instructions at [numbers-parser](https://github.com/masaccio/numbers-parser#installation).
+
 ## Usage
 
 Use `csv2numbers` to print command-line usage. You must provide at least one CSV file on the command-line and can provide multiple files, which will then all be converted using the same parameters. Output files can optionally be provided, but is none are provided, the output is created by replacing the input's files suffix with `.numbers`. For example:
