@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import csv
 import re
+import warnings
 from pathlib import Path
 from sys import exit, stderr
 from typing import NamedTuple, Tuple  # noqa: F401
@@ -319,12 +320,14 @@ def main() -> None:
 
     try:
         for csv_filename, output_filename in zip(args.csvfile, output_filenames):
-            data = read_csv_file(
-                csv_filename,
-                day_first=args.day_first,
-                no_header=args.no_header,
-                date_columns=args.date,
-            )
+            with warnings.catch_warnings():
+                warnings.simplefilter(action="ignore", category=UserWarning)
+                data = read_csv_file(
+                    csv_filename,
+                    day_first=args.day_first,
+                    no_header=args.no_header,
+                    date_columns=args.date,
+                )
             data = reformat_data(data, whitespace=args.whitespace, reverse=args.reverse)
             data = transform_columns(data, args.transform)
             data = rename_columns(data, args.rename)
