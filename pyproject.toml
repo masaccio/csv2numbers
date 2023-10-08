@@ -1,29 +1,27 @@
 [tool.poetry]
-name = "csv2numbers"
-version = "1.0.0"
-description = "Automator scripts"
 authors = ["Jon Connell <python@figsandfudge.com>"]
+description = "Automator scripts"
+name = "csv2numbers"
 packages = [{include = "csv2numbers"}]
 readme = "README.md"
 repository = "https://github.com/masaccio/csv2numbers"
+version = "1.0.0"
 
 [tool.poetry.scripts]
 csv2numbers = "csv2numbers._csv2numbers:main"
 
-
 [tool.poetry.dependencies]
-python = ">=3.9,<3.13"
 numbers-parser = "^4.4.6"
 pandas = "^2.1.1"
+python = ">=3.9,<3.13"
 
 [tool.poetry.group.dev.dependencies]
 pytest-console-scripts = "^1.4.1"
 pytest-cov = "^4.1.0"
-pytest-xdist = "^3.3.1"
 
 [build-system]
-requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+requires = ["poetry-core"]
 
 [tool.coverage.run]
 branch = true
@@ -34,17 +32,17 @@ show_contexts = true
 
 [tool.pytest.ini_options]
 addopts = "-p no:warnings --cov=csv2numbers --cov-report=html --cov-report=term-missing:skip-covered --cov-context=test"
-script_launch_mode = "subprocess"
+script_launch_mode = "inprocess"
 
 [tool.isort]
 profile = "black"
 
 [tool.ruff]
 fix = true
+ignore = ["PLR2004", "T201", "PTH123"]
 line-length = 100
 select = ["ALL"]
 target-version = "py38"
-ignore = ["PLR2004", "T201", "PTH123"]
 
 [tool.ruff.flake8-tidy-imports]
 ban-relative-imports = "all"
