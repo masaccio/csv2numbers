@@ -20,44 +20,10 @@ class ColumnTransform(NamedTuple):
     func: callable
 
 
-def write_output(data: pd.DataFrame, filename: str) -> None:
-    """Write dataframe transctions to a Numbers file."""
-    doc = Document(num_rows=2, num_cols=2)
-    table = doc.sheets[0].tables[0]
-
-    for col_num, value in enumerate(data.columns.tolist()):
-        table.write(0, col_num, value)
-
-    for row_num, row in data.iterrows():
-        for col_num, value in enumerate(row):
-            if value:
-                table.write(row_num + 1, col_num, value)
-
-    doc.save(filename)
-
-
-def read_csv_file(args: argparse.Namespace) -> pd.DataFrame:
-    """Parse CSV file with Pandas and return a dataframe."""
-    header = None if args.no_header else 0
-    parse_dates = args.date if args.date is not None else False
-    try:
-        data = pd.read_csv(
-            args.csvfile,
-            dayfirst=args.day_first,
-            header=header,
-            parse_dates=parse_dates,
-        )
-    except FileNotFoundError as e:
-        msg = f"{args.csvfile}: file not found"
-        raise RuntimeError(msg) from e
-    except pd.errors.ParserError as e:
-        msg = f"{args.csvfile}: {e.args[0]}"
-        raise RuntimeError(msg) from e
-    return data
-
-
 def rename_columns(data: pd.DataFrame, mapper: dict) -> pd.DataFrame:
     """Rename columns using column map."""
+    if mapper is None:
+        return data
     return data.rename(columns=mapper)
 
 
@@ -138,8 +104,10 @@ def transform_columns(
     data: pd.DataFrame, columns: list[ColumnTransform]  # noqa: COM812
 ) -> pd.DataFrame:
     """Perform column transformationstransformations."""
+    if columns is None:
+        return data
     for transform in columns:
-        transform.func(data, transform.source, transform.dest)
+        data = transform.func(data, transform.source, transform.dest)
     return data
 
 
@@ -274,6 +242,42 @@ def parse_command_line() -> argparse.Namespace:
         help="output filename (default: use source file with .numbers)",
     )
     return parser.parse_args()
+
+
+def read_csv_file(args: argparse.Namespace) -> pd.DataFrame:
+    """Parse CSV file with Pandas and return a dataframe."""
+    header = None if args.no_header else 0
+    parse_dates = args.date if args.date is not None else False
+    try:
+        data = pd.read_csv(
+            args.csvfile,
+            dayfirst=args.day_first,
+            header=header,
+            parse_dates=parse_dates,
+        )
+    except FileNotFoundError as e:
+        msg = f"{args.csvfile}: file not found"
+        raise RuntimeError(msg) from e
+    except pd.errors.ParserError as e:
+        msg = f"{args.csvfile}: {e.args[0]}"
+        raise RuntimeError(msg) from e
+    return data
+
+
+def write_output(data: pd.DataFrame, filename: str) -> None:
+    """Write dataframe transctions to a Numbers file."""
+    doc = Document(num_rows=2, num_cols=2)
+    table = doc.sheets[0].tables[0]
+
+    for col_num, value in enumerate(data.columns.tolist()):
+        table.write(0, col_num, value)
+
+    for row_num, row in data.iterrows():
+        for col_num, value in enumerate(row):
+            if value:
+                table.write(row_num + 1, col_num, value)
+
+    doc.save(filename)
 
 
 def main() -> None:
