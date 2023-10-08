@@ -258,6 +258,7 @@ def read_csv_file(args: argparse.Namespace) -> pd.DataFrame:
             dayfirst=args.day_first,
             header=header,
             parse_dates=parse_dates,
+            thousands=",",
         )
     except FileNotFoundError as e:
         msg = f"{args.csvfile}: file not found"
