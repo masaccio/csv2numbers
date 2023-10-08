@@ -1,3 +1,3 @@
-from ._compact_json import main
+from ._csv2numbers import main
 
 main()

@@ -6,6 +6,8 @@ from pathlib import Path
 import pytest
 from numbers_parser import Document
 
+from csv2numbers import _get_version
+
 
 def test_help(script_runner) -> None:
     """Test conversion with no transforms."""
@@ -18,8 +20,20 @@ def test_help(script_runner) -> None:
     assert "usage: csv2numbers" in ret.stdout
 
 
+@pytest.mark.script_launch_mode("subprocess")
+def test_version(script_runner) -> None:
+    """Test Version number."""
+    ret = script_runner.run(["csv2numbers", "-V"], print_result=False)
+    assert ret.stderr == ""
+    assert ret.stdout.strip() == _get_version()
+
+    ret = script_runner.run(["python3", "-m", "csv2numbers", "-V"], print_result=False)
+    assert ret.stderr == ""
+    assert ret.stdout.strip() == _get_version()
+
+
 def test_defaults(script_runner, tmp_path) -> None:
-    """Test conversion with no transforms."""
+    """Test conversion with no options."""
     csv_path = str(tmp_path / "format-1.csv")
     shutil.copy("tests/data/format-1.csv", csv_path)
 
