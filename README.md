@@ -30,7 +30,7 @@ The following options affecting the output of the entire file. The default for e
 Delete columns using `--delete`. The names or indices of the columns to delete are specified as comma-separated values:
 
 ``` text
-csv2text file1.csv --delete=Account,3
+csv2numbers file1.csv --delete=Account,3
 ```
 
 ## Renaming columns
@@ -38,7 +38,7 @@ csv2text file1.csv --delete=Account,3
 Rename columns using `--rename`. The current column name and new column name are separated by a `:` and each renaming is specified as comma-separated values:
 
 ``` text
-csv2text file1.csv --rename=2:Account,"Paid In":Amount
+csv2numbers file1.csv --rename=2:Account,"Paid In":Amount
 ```
 
 ## Date columns
@@ -52,6 +52,12 @@ Columns can be merged and new columns created using simple functions. The `--tra
 * `MERGE`: the new column merges values from other columns with the chosen value being the first non-empty value
 * `NEG`: the new column contains absolute values of any column that is negative; this is useful for isolating debits from account exports
 * `POS`: the new column contains values of any column that is positive; this is useful for isolating credits from account exports
+
+Examples:
+
+``` text
+csv2numbers --transform="Paid In"=POS:Amount,Withdrawn=NEG:Amount file1.csv
+```
 
 ## License
 
