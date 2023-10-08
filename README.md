@@ -6,7 +6,6 @@
 
 `csv2numbers` is a command-line utility to convert CSV files to Apple Numbers spreadsheets.
 
-
 ## Usage
 
 ``` text
