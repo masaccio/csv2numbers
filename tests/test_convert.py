@@ -95,10 +95,50 @@ def test_errors(script_runner) -> None:
     assert "malformed CSV string" in ret.stderr
 
     ret = script_runner.run(
+        ["csv2numbers", "--transform=foo"],
+        print_result=False,
+    )
+    assert "invalid transformation format" in ret.stderr
+
+    ret = script_runner.run(
         ["csv2numbers", "not-exists.csv"],
         print_result=False,
     )
     assert "not-exists.csv: file not found" in ret.stderr
+
+
+@pytest.mark.script_launch_mode("subprocess")
+def test_multifile(script_runner, tmp_path) -> None:
+    """Test conversion with no options."""
+    csv_path_1 = str(tmp_path / "format-1.csv")
+    shutil.copy("tests/data/format-1.csv", csv_path_1)
+    numbers_path_1 = Path(csv_path_1).with_suffix(".numbers")
+    csv_path_2 = str(tmp_path / "format-2.csv")
+    shutil.copy("tests/data/format-2.csv", csv_path_2)
+    numbers_path_2 = Path(csv_path_2).with_suffix(".numbers")
+
+    ret = script_runner.run(
+        ["csv2numbers", csv_path_1, csv_path_2, "-o", numbers_path_1, numbers_path_2],
+        print_result=False,
+    )
+    assert ret.stdout == ""
+    assert ret.stderr == ""
+    assert ret.success
+
+    assert numbers_path_1.exists()
+    assert numbers_path_2.exists()
+
+    ret = script_runner.run(
+        [
+            "csv2numbers",
+            "tests/data/format-1.csv",
+            "tests/data/format-2.csv",
+            "--output",
+            "invalid",
+        ],
+        print_result=False,
+    )
+    assert "numbers of input and output file names do not match" in ret.stderr
 
 
 @pytest.mark.script_launch_mode("subprocess")
@@ -120,6 +160,7 @@ def test_transforms_format_1(script_runner, tmp_path) -> None:
         [
             "csv2numbers",
             "--whitespace",
+            "--reverse",
             "--day-first",
             "--date=Date",
             "--delete=Card Member,Account #",
@@ -135,9 +176,9 @@ def test_transforms_format_1(script_runner, tmp_path) -> None:
 
     doc = Document(str(numbers_path))
     table = doc.sheets[0].tables[0]
-    assert table.cell(1, 1).value == "GROCERY STORE LONDON"
-    assert str(table.cell(2, 0).value) == "2008-04-05T00:00:00+00:00"
-    assert table.cell(6, 2).value == 4.99
+    assert table.cell(1, 1).value == "FLOWERS INC. 202-5551234"
+    assert str(table.cell(2, 0).value) == "2008-04-02T00:00:00+00:00"
+    assert table.cell(6, 2).value == 30.99
 
 
 def test_transforms_format_2(script_runner, tmp_path) -> None:
