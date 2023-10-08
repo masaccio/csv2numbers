@@ -2,6 +2,7 @@
 
 [![build:](https://github.com/masaccio/csv2numbers/actions/workflows/run-all-tests.yml/badge.svg)](https://github.com/masaccio/csv2numbers/actions/workflows/run-all-tests.yml)
 [![codecov](https://codecov.io/gh/masaccio/csv2numbers/branch/main/graph/badge.svg?token=EKIUFGT05E)](https://codecov.io/gh/masaccio/csv2numbers)
+[![PyPI version](https://badge.fury.io/py/csv2numbers.svg)](https://badge.fury.io/py/csv2numbers)
 
 `csv2numbers` is a command-line utility to convert CSV files to Apple Numbers spreadsheets.
 
