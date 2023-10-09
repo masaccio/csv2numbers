@@ -60,14 +60,18 @@ The `--date` option identifies a comma-separated list of columns that should be 
 
 Columns can be merged and new columns created using simple functions. The `--transform` option takes a comma-seperated list of transformations of the form `NEW:FUNC=OLD`. Supported functions are:
 
-* `MERGE`: the new column merges values from other columns with the chosen value being the first non-empty value
-* `NEG`: the new column contains absolute values of any column that is negative; this is useful for isolating debits from account exports
-* `POS`: the new column contains values of any column that is positive; this is useful for isolating credits from account exports
+| Function    | Arguments | Description  |
+| ----------- | --------- | ------------ |
+| `MERGE`     | `dest=MERGE:source` | The `dest` column is writen with values from one or more columns indicated by `source`. For multiple columns, which are separated by `;`, the first empty value is chosen. |
+| `NEG`       | `dest=NEG:source` | The `dest` column contains absolute values of any column that is negative. This is useful for isolating debits from account exports. |
+| `POS`       | `dest=NEG:source` | The `dest` column contains values of any column that is positive. This is useful for isolating credits from account exports. |
+| `LOOKUP`    | `dest=LOOKUP:source,filename` | A lookup map is read from `filename` which must be an Apple Numbers file containing a single table of two columns. The table is used to match agsinst `source`, searching the first column for matches and writing the corresponding value from the second column to `dest`. Values are chosen based on the longest matching substring. |
 
 Examples:
 
 ``` text
 csv2numbers --transform="Paid In"=POS:Amount,Withdrawn=NEG:Amount file1.csv
+csv2numbers --transform=Category=LOOKUP:Transaction,mapping.numbers file1.csv
 ```
 
 ## License

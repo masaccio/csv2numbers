@@ -246,3 +246,29 @@ def test_transforms_format_3(script_runner, tmp_path) -> None:
     assert table.cell(0, 1).value == "Transaction"
     assert table.cell(0, 2).value == "Amount"
     assert table.cell(7, 2).value == -1283.72
+
+
+def test_transforms_lookup(script_runner, tmp_path) -> None:
+    """Test conversion with transformation."""
+    csv_path = str(tmp_path / "matches.csv")
+    shutil.copy("tests/data/matches.csv", csv_path)
+
+    ret = script_runner.run(
+        [
+            "csv2numbers",
+            "--transform=Category=LOOKUP:Description;tests/data/mapping.numbers",
+            csv_path,
+        ],
+        print_result=False,
+    )
+
+    assert ret.stdout == ""
+    assert ret.stderr == ""
+    assert ret.success
+    numbers_path = Path(csv_path).with_suffix(".numbers")
+    assert numbers_path.exists()
+
+    doc = Document(str(numbers_path))
+    table = doc.sheets[0].tables[0]
+    categories = [table.cell(row_num, 3).value for row_num in range(table.num_rows)]
+    assert categories == ["Category", "Groceries", "Fuel", "Clothes", None, "Flowers"]

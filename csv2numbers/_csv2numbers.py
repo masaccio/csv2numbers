@@ -5,15 +5,23 @@ import argparse
 import csv
 import re
 import warnings
+from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
 from sys import exit, stderr
 from typing import NamedTuple, Tuple  # noqa: F401
 
 import pandas as pd
-from numbers_parser import Document
+from numbers_parser import Document, NumbersError
 
 from csv2numbers import _get_version
+
+
+def filter_whitespace(x: str) -> str:
+    """Strip and collapse whitespace."""
+    if isinstance(x, str):
+        return re.sub(r"\s+", " ", x.strip())
+    return x
 
 
 class ColumnTransform(NamedTuple):
@@ -167,11 +175,45 @@ def pos_transform(data: pd.DataFrame, source: str, dest: str) -> pd.DataFrame:
     return data.apply(lambda row: positive_values(row, source, dest), axis=1)
 
 
-def filter_whitespace(x: str) -> str:
-    """Strip and collapse whitespace."""
-    if isinstance(x, str):
-        return re.sub(r"\s+", " ", x.strip())
-    return x
+def lookup_transform(data: pd.DataFrame, source: str, dest: str) -> pd.DataFrame:
+    """Column trsnaform to map values based on a lookup table."""
+    sources = source.split(";")
+    if len(sources) != 2:
+        msg = f"'{source}' LOOKUP must have exactly 2 arguments"
+        raise RuntimeError(msg) from None
+
+    (source, map_filname) = sources
+    if not Path(map_filname).exists():
+        msg = f"'{map_filname}' no such file or directory"
+        raise RuntimeError(msg) from None
+
+    if source not in data.columns:
+        msg = f"'{source}': column doesn't exist in CSV file"
+        raise RuntimeError(msg) from None
+
+    try:
+        doc = Document(map_filname)
+        table = doc.sheets[0].tables[0]
+        lookup_map = {
+            table.cell(row_num, 0).value: table.cell(row_num, 1).value
+            for row_num in range(table.num_rows)
+        }
+    except NumbersError as e:
+        msg = f"{map_filname}: e"
+        raise RuntimeError(msg) from e
+    else:
+        matches_by_row = defaultdict(list)
+        for key, value in lookup_map.items():
+            row_ids = data[source][
+                data[source].str.contains(key.lower(), case=False)
+            ].index.tolist()
+            for i in row_ids:
+                matches_by_row[i].append({"value": value, "len": len(key)})
+        data[dest] = ""
+        for i, matches in matches_by_row.items():
+            data.loc[i, dest] = max(matches, key=lambda x: x["len"])["value"]
+
+    return data
 
 
 def parse_columns(arg: str) -> list:
