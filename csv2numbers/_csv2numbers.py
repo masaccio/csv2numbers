@@ -199,7 +199,7 @@ def lookup_transform(data: pd.DataFrame, source: str, dest: str) -> pd.DataFrame
             for row_num in range(table.num_rows)
         }
     except NumbersError as e:
-        msg = f"{map_filname}: e"
+        msg = f"{map_filname}: {str(e)}"
         raise RuntimeError(msg) from e
     else:
         matches_by_row = defaultdict(list)

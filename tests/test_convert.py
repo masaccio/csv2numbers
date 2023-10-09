@@ -106,6 +106,46 @@ def test_errors(script_runner) -> None:
     )
     assert "not-exists.csv: file not found" in ret.stderr
 
+    ret = script_runner.run(
+        [
+            "csv2numbers",
+            "--transform=Category=LOOKUP:Description",
+            "tests/data/matches.csv",
+        ],
+        print_result=False,
+    )
+    assert "LOOKUP must have exactly 2 arguments" in ret.stderr
+
+    ret = script_runner.run(
+        [
+            "csv2numbers",
+            "--transform=Category=LOOKUP:XX;YY",
+            "tests/data/matches.csv",
+        ],
+        print_result=False,
+    )
+    assert "no such file or directory" in ret.stderr
+
+    ret = script_runner.run(
+        [
+            "csv2numbers",
+            "--transform=Category=LOOKUP:XX;tests/data/mapping.numbers",
+            "tests/data/matches.csv",
+        ],
+        print_result=False,
+    )
+    assert "'XX': column doesn't exist in CSV file" in ret.stderr
+
+    ret = script_runner.run(
+        [
+            "csv2numbers",
+            "--transform=Category=LOOKUP:Description;tests/data/corrupted.numbers",
+            "tests/data/matches.csv",
+        ],
+        print_result=False,
+    )
+    assert "Index/Metadata.iwa: invalid IWA file Index/Metadata.iwa" in ret.stderr
+
 
 @pytest.mark.script_launch_mode("subprocess")
 def test_multifile(script_runner, tmp_path) -> None:
