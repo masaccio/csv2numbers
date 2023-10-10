@@ -8,7 +8,7 @@ import warnings
 from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
-from sys import argv, exit, stderr
+from sys import exit, stderr
 from typing import NamedTuple, Tuple  # noqa: F401
 
 import pandas as pd
@@ -184,7 +184,7 @@ def lookup_transform(data: pd.DataFrame, source: str, dest: str) -> pd.DataFrame
 
     (source, map_filname) = sources
     if not Path(map_filname).exists():
-        msg = f"'{map_filname}' no such file or directory"
+        msg = f"{map_filname}: no such file or directory"
         raise RuntimeError(msg) from None
 
     if source not in data.columns:
@@ -286,11 +286,6 @@ def command_line_parser() -> argparse.ArgumentParser:
         help="reverse the order of the data rows (default: false)",
     )
     parser.add_argument(
-        "--debug",
-        required=False,
-        action="store_true",
-    )
-    parser.add_argument(
         "--no-header",
         required=False,
         action="store_true",
@@ -349,10 +344,6 @@ def main() -> None:
         print("At least one CSV file is required", file=stderr)
         parser.print_help(stderr)
         exit(1)
-
-    if args.debug:
-        for i, arg in enumerate(argv):
-            print(f"argv[{i}] >>>{arg}<<<")
 
     if args.output is None:
         output_filenames = [Path(x).with_suffix(".numbers") for x in args.csvfile]

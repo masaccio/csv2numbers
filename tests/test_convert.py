@@ -129,7 +129,6 @@ def test_errors(script_runner) -> None:
     ret = script_runner.run(
         [
             "csv2numbers",
-            "--debug",
             "--transform=Category=LOOKUP:XX;tests/data/mapping.numbers",
             "tests/data/matches.csv",
         ],
@@ -289,6 +288,7 @@ def test_transforms_format_3(script_runner, tmp_path) -> None:
     assert table.cell(7, 2).value == -1283.72
 
 
+@pytest.mark.script_launch_mode("subprocess")
 def test_transforms_lookup(script_runner, tmp_path) -> None:
     """Test conversion with transformation."""
     csv_path = str(tmp_path / "matches.csv")
