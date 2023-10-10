@@ -96,7 +96,7 @@ Examples:
 
 ``` text
 csv2numbers --transform="Paid In"=POS:Amount,Withdrawn=NEG:Amount file1.csv
-csv2numbers --transform=Category=LOOKUP:Transaction,mapping.numbers file1.csv
+csv2numbers --transform='Category=LOOKUP:Transaction;mapping.numbers' file1.csv
 ```
 
 ## License
