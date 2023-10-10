@@ -211,10 +211,6 @@ class LookupTransformer(Transformer):
 
     def transform_row(self: LookupTransformer, row: pd.Series) -> pd.Series:
         """Column transform to map values based on a lookup table."""
-        if self.sources[0] not in row:
-            msg = f"'{self.source[0]}': column does not exist in CSV file"
-            raise RuntimeError(msg) from None
-
         matches = [
             {"value": v, "len": len(k)}
             for k, v in self.lookup_map.items()
