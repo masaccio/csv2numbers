@@ -90,7 +90,7 @@ Columns can be merged and new columns created using simple functions. The `--tra
 | `MERGE`     | `dest=MERGE:source` | The `dest` column is writen with values from one or more columns indicated by `source`. For multiple columns, which are separated by `;`, the first empty value is chosen. |
 | `NEG`       | `dest=NEG:source` | The `dest` column contains absolute values of any column that is negative. This is useful for isolating debits from account exports. |
 | `POS`       | `dest=NEG:source` | The `dest` column contains values of any column that is positive. This is useful for isolating credits from account exports. |
-| `LOOKUP`    | `dest=LOOKUP:source,filename` | A lookup map is read from `filename` which must be an Apple Numbers file containing a single table of two columns. The table is used to match agsinst `source`, searching the first column for matches and writing the corresponding value from the second column to `dest`. Values are chosen based on the longest matching substring. |
+| `LOOKUP`    | `dest=LOOKUP:source;filename` | A lookup map is read from `filename` which must be an Apple Numbers file containing a single table of two columns. The table is used to match agsinst `source`, searching the first column for matches and writing the corresponding value from the second column to `dest`. Values are chosen based on the longest matching substring. |
 
 Examples:
 
