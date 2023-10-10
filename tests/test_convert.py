@@ -62,7 +62,7 @@ def test_errors(script_runner) -> None:
         ["csv2numbers", "--transform=XX=POS:YY", "tests/data/format-1.csv"],
         print_result=False,
     )
-    assert "merge failed: 'YY' does not exist in CSV" in ret.stderr
+    assert "transform failed: column(s) do not exist in CSV" in ret.stderr
 
     ret = script_runner.run(
         ["csv2numbers", "--transform=XX=FUNC:Account", "tests/data/format-1.csv"],
@@ -134,7 +134,7 @@ def test_errors(script_runner) -> None:
         ],
         print_result=False,
     )
-    assert "'XX': column doesn't exist in CSV file" in ret.stderr
+    assert "'XX': column does not exist in CSV file" in ret.stderr
 
     ret = script_runner.run(
         [
