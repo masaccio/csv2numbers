@@ -5,7 +5,6 @@ import argparse
 import csv
 import re
 import warnings
-from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
 from sys import exit, stderr
@@ -15,13 +14,6 @@ import pandas as pd
 from numbers_parser import Document, NumbersError
 
 from csv2numbers import _get_version
-
-
-def filter_whitespace(x: str) -> str:
-    """Strip and collapse whitespace."""
-    if isinstance(x, str):
-        return re.sub(r"\s+", " ", x.strip())
-    return x
 
 
 class ColumnTransform(NamedTuple):
@@ -48,6 +40,8 @@ class Converter:
         parse_dates = self.date_columns if self.date_columns is not None else False
         try:
             with warnings.catch_warnings():
+                # Pandas issues a UserWarning for some dates, but still goes
+                # on to parse them correctly.
                 warnings.simplefilter(action="ignore", category=UserWarning)
                 self.data = pd.read_csv(
                     self.input_filename,
@@ -66,7 +60,9 @@ class Converter:
             self.data = self.data.fillna("")
             for column in self.data.columns:
                 if self.whitespace:
-                    self.data[column] = self.data[column].apply(func=filter_whitespace)
+                    self.data[column] = self.data[column].apply(
+                        func=Converter.filter_whitespace,
+                    )
 
             if self.reverse:
                 self.data = self.data.iloc[::-1]
@@ -90,7 +86,8 @@ class Converter:
             ]
             self.data = self.data.drop(columns=columns_to_delete)
         except KeyError:
-            msg = "'" + "', '".join([str(x) for x in columns]) + "'"
+            missing = list(set(columns) - set(self.data.columns))
+            msg = "'" + "', '".join([str(x) for x in missing]) + "'"
             msg += ": cannot delete: column(s) do not exist in CSV"
             raise RuntimeError(msg) from None
 
@@ -99,7 +96,14 @@ class Converter:
         if columns is None:
             return
         for transform in columns:
-            self.data = transform.func(self.data, transform.source, transform.dest)
+            self.data = transform.transform(self.data)
+
+    @staticmethod
+    def filter_whitespace(x: str) -> str:
+        """Strip and collapse whitespace."""
+        if isinstance(x, str):
+            return re.sub(r"\s+", " ", x.strip())
+        return x
 
     def __del__(self: Converter) -> None:
         """Write dataframe transctions to a Numbers file."""
@@ -117,103 +121,118 @@ class Converter:
         doc.save(self.output_filename)
 
 
-def col_names_for_transform(row: pd.Series, source: str, dest: str) -> tuple[str, str]:
-    """Convert column name strings to pandas column names."""
-    dest_col = int(dest) if dest.isnumeric() else dest
-    source_cols = [int(x) if x.isnumeric() else x for x in source.split(";")]
-    if not all(x in row for x in source_cols):
-        msg = f"merge failed: '{source}' does not exist in CSV"
-        raise RuntimeError(msg)
-    return (dest_col, source_cols)
+class Transformer:
+    """Base class for column transformations."""
+
+    def __init__(self: Transformer, source: str, dest: str) -> None:
+        self.dest = int(dest) if dest.isnumeric() else dest
+        self.sources = [int(x) if x.isnumeric() else x for x in source.split(";")]
+
+    def transform_row(self: Transformer, row: pd.Series) -> pd.Series:
+        """Abstract base method for transforming rows using df.apply()."""
+        raise NotImplementedError
+
+    def transform(self: Transformer, data: pd.DataFrame) -> pd.DataFrame:
+        """Column transform to merge columns."""
+        if not all(x in data.columns for x in self.sources):
+            missing = list(set(self.sources) - set(data.columns))
+            msg = "'" + "', '".join([str(x) for x in missing]) + "'"
+            msg += ": transform failed: column(s) do not exist in CSV"
+            raise RuntimeError(msg)
+        return data.apply(lambda row: self.transform_row(row), axis=1)
 
 
-def merge_row(row: pd.Series, source: str, dest: str) -> pd.Series:
-    """Merge data in a single row."""
-    (dest_col, source_cols) = col_names_for_transform(row, source, dest)
-    value = ""
-    for col in source_cols:
-        if row[col] and not value:
-            value = row[col]
-    row[dest_col] = value
-    return row
+class MergeTransformer(Transformer):
+    """Transformer for column MERGE operations."""
+
+    def transform_row(self: MergeTransformer, row: pd.Series) -> pd.Series:
+        """Merge data in a single row."""
+        value = ""
+        for col in self.sources:
+            if row[col] and not value:
+                value = row[col]
+        row[self.dest] = value
+        return row
 
 
-def merge_transform(data: pd.DataFrame, source: str, dest: str) -> pd.DataFrame:
-    """Column transform to merge columns."""
-    return data.apply(lambda row: merge_row(row, source, dest), axis=1)
+class NegTransformer(Transformer):
+    """Transformer for column NEG operations."""
+
+    def transform_row(self: NegTransformer, row: pd.Series) -> pd.Series:
+        """Select negative values for a row."""
+        value = ""
+        for col in self.sources:
+            if row[col] and not value and float(row[col]) < 0:
+                value = abs(float(row[col]))
+        row[self.dest] = value
+        return row
 
 
-def negative_values(row: pd.Series, source: str, dest: str) -> pd.Series:
-    """Select negative values for a row."""
-    (dest_col, source_cols) = col_names_for_transform(row, source, dest)
-    value = ""
-    for col in source_cols:
-        if row[col] and not value and float(row[col]) < 0:
-            value = abs(float(row[col]))
-    row[dest_col] = value
-    return row
+class PosTransformer(Transformer):
+    """Transformer for column POS operations."""
+
+    def transform_row(self: PosTransformer, row: pd.Series) -> pd.Series:
+        """Select positive values for a row."""
+        value = ""
+        for col in self.sources:
+            if row[col] and not value and float(row[col]) > 0:
+                value = float(row[col])
+        row[self.dest] = value
+        return row
 
 
-def neg_transform(data: pd.DataFrame, source: str, dest: str) -> pd.DataFrame:
-    """Column transform to select negative numbers."""
-    return data.apply(lambda row: negative_values(row, source, dest), axis=1)
+class LookupTransformer(Transformer):
+    """Transformer for column LOOKUP operations."""
+
+    def __init__(self: Transformer, source: str, dest: str) -> None:
+        super().__init__(source, dest)
+
+        if len(self.sources) != 2:
+            msg = f"'{self.sources}' LOOKUP must have exactly 2 arguments"
+            raise RuntimeError(msg) from None
+
+        (source, map_filname) = self.sources
+        self.sources = [source]
+
+        if not Path(map_filname).exists():
+            msg = f"{map_filname}: no such file or directory"
+            raise RuntimeError(msg) from None
+
+        try:
+            doc = Document(map_filname)
+            table = doc.sheets[0].tables[0]
+            self.lookup_map = {
+                table.cell(row_num, 0).value: table.cell(row_num, 1).value
+                for row_num in range(table.num_rows)
+            }
+        except NumbersError as e:
+            msg = f"{map_filname}: {e!r}"
+            raise RuntimeError(msg) from e
+
+    def transform_row(self: LookupTransformer, row: pd.Series) -> pd.Series:
+        """Column transform to map values based on a lookup table."""
+        if self.sources[0] not in row:
+            msg = f"'{self.source[0]}': column does not exist in CSV file"
+            raise RuntimeError(msg) from None
+
+        matches = [
+            {"value": v, "len": len(k)}
+            for k, v in self.lookup_map.items()
+            if k.lower() in row[self.sources[0]].lower()
+        ]
+        if len(matches) > 0:
+            row[self.dest] = max(matches, key=lambda x: x["len"])["value"]
+        else:
+            row[self.dest] = ""
+        return row
 
 
-def positive_values(row: pd.Series, source: str, dest: str) -> pd.Series:
-    """Select positive values for a row."""
-    (dest_col, source_cols) = col_names_for_transform(row, source, dest)
-    value = ""
-    for col in source_cols:
-        if row[col] and not value and float(row[col]) > 0:
-            value = float(row[col])
-    row[dest_col] = value
-    return row
-
-
-def pos_transform(data: pd.DataFrame, source: str, dest: str) -> pd.DataFrame:
-    """Column transform to select positive numbers."""
-    return data.apply(lambda row: positive_values(row, source, dest), axis=1)
-
-
-def lookup_transform(data: pd.DataFrame, source: str, dest: str) -> pd.DataFrame:
-    """Column trsnaform to map values based on a lookup table."""
-    sources = source.split(";")
-    if len(sources) != 2:
-        msg = f"'{source}' LOOKUP must have exactly 2 arguments"
-        raise RuntimeError(msg) from None
-
-    (source, map_filname) = sources
-    if not Path(map_filname).exists():
-        msg = f"{map_filname}: no such file or directory"
-        raise RuntimeError(msg) from None
-
-    if source not in data.columns:
-        msg = f"'{source}': column doesn't exist in CSV file"
-        raise RuntimeError(msg) from None
-
-    try:
-        doc = Document(map_filname)
-        table = doc.sheets[0].tables[0]
-        lookup_map = {
-            table.cell(row_num, 0).value: table.cell(row_num, 1).value
-            for row_num in range(table.num_rows)
-        }
-    except NumbersError as e:
-        msg = f"{map_filname}: {e!r}"
-        raise RuntimeError(msg) from e
-    else:
-        matches_by_row = defaultdict(list)
-        for key, value in lookup_map.items():
-            row_ids = data[source][
-                data[source].str.contains(key.lower(), case=False)
-            ].index.tolist()
-            for i in row_ids:
-                matches_by_row[i].append({"value": value, "len": len(key)})
-        data[dest] = ""
-        for i, matches in matches_by_row.items():
-            data.loc[i, dest] = max(matches, key=lambda x: x["len"])["value"]
-
-    return data
+TRANSFORMERS = {
+    "merge": MergeTransformer,
+    "neg": NegTransformer,
+    "pos": PosTransformer,
+    "lookup": LookupTransformer,
+}
 
 
 def parse_columns(arg: str) -> list:
@@ -255,12 +274,12 @@ def parse_column_transforms(arg: str) -> list[ColumnTransform]:
                 msg = f"'{transform}': invalid transformation format"
                 raise argparse.ArgumentTypeError(msg)
             dest = m.group(1)
-            func = m.group(2).lower() + "_transform"
+            func = m.group(2).lower()
             source = m.group(3)
-            if func not in globals():
+            if func not in TRANSFORMERS:
                 msg = f"'{m.group(2)}': invalid transformation"
                 raise argparse.ArgumentTypeError(msg)
-            transforms.append(ColumnTransform(source, dest, globals()[func]))
+            transforms.append(TRANSFORMERS[func.lower()](source, dest))
     except csv.Error as e:
         msg = f"'{arg}': malformed CSV string"
         raise argparse.ArgumentTypeError(msg) from e
