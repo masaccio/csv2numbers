@@ -129,6 +129,7 @@ def test_errors(script_runner) -> None:
     ret = script_runner.run(
         [
             "csv2numbers",
+            "--debug",
             "--transform=Category=LOOKUP:XX;tests/data/mapping.numbers",
             "tests/data/matches.csv",
         ],
