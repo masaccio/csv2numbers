@@ -7,8 +7,10 @@ import pytest
 from numbers_parser import Document
 
 from csv2numbers import _get_version
+from csv2numbers._csv2numbers import Transformer
 
 
+@pytest.mark.script_launch_mode("subprocess")
 def test_help(script_runner) -> None:
     """Test conversion with no transforms."""
     ret = script_runner.run(["csv2numbers"], print_result=False)
@@ -134,7 +136,7 @@ def test_errors(script_runner) -> None:
         ],
         print_result=False,
     )
-    assert "'XX': column does not exist in CSV file" in ret.stderr
+    assert "transform failed: column(s) do not exist in CSV" in ret.stderr
 
     ret = script_runner.run(
         [
@@ -313,3 +315,7 @@ def test_transforms_lookup(script_runner, tmp_path) -> None:
     table = doc.sheets[0].tables[0]
     categories = [table.cell(row_num, 3).value for row_num in range(table.num_rows)]
     assert categories == ["Category", "Groceries", "Fuel", "Clothes", None, "Flowers"]
+
+    cls = Transformer("XX", "YY")
+    with pytest.raises(NotImplementedError):
+        cls.transform_row(None)
