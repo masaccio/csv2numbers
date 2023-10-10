@@ -25,6 +25,7 @@ src/*.egg-info
 .tox
 .venv
 build
+tests/data/format*.numbers
 
 # Local
 *.ignore
