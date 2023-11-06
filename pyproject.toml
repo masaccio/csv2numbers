@@ -5,7 +5,7 @@ name = "csv2numbers"
 packages = [{include = "csv2numbers"}]
 readme = "README.md"
 repository = "https://github.com/masaccio/csv2numbers"
-version = "1.1.0"
+version = "1.1.1"
 
 [tool.poetry.scripts]
 csv2numbers = "csv2numbers._csv2numbers:main"
