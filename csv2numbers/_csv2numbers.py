@@ -49,6 +49,7 @@ class Converter:
                     header=header,
                     parse_dates=parse_dates,
                     thousands=",",
+                    encoding_errors="replace",
                 )
         except FileNotFoundError as e:
             msg = f"{self.input_filename}: file not found"
