@@ -2,27 +2,38 @@
     "version": "0.2.0",
     "configurations": [
         {
+            "env": {
+                "PYTEST_ADDOPTS": "--no-cov"
+            },
             "name": "Python: Debug Tests",
             "type": "python",
             "request": "launch",
             "program": "${file}",
-            "purpose": ["debug-test"],
+            "purpose": [
+                "debug-test"
+            ],
             "console": "integratedTerminal",
-            "env": {"PYTEST_ADDOPTS": "--no-cov"}, 
             "justMyCode": true
         },
         {
-            "name": "Pytest: Current File",
+            "env": {
+                "PYTEST_ADDOPTS": "--no-cov"
+            },
+            "name": "Debug from Downloads",
+
             "type": "python",
-            "request": "launch",
-            "module": "pytest",
-            "console": "integratedTerminal",
-            "env": {"PYTEST_ADDOPTS": "--no-cov"}, 
-            "justMyCode": true,
+            "program": "${workspaceFolder}/csv2numbers/_csv2numbers.py",
             "args": [
-                "${file}",
-                "tests/data/format-1.csv"
-            ]
+                "--whitespace",
+                "--day-first",
+                "--date=Date",
+                "--delete=Amount,Balance",
+                "--transform=Paid In=POS:Amount,Withdrawn=NEG:Amount,Category=LOOKUP:Description;${env:HOME}/Documents/Financial/Transaction-Map.numbers",
+                "${env:HOME}/Downloads/test.csv"
+            ],
+            "request": "launch",
+            "console": "integratedTerminal",
+            "justMyCode": true
         }
     ]
 }
