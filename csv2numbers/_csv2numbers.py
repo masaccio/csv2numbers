@@ -117,7 +117,15 @@ class Converter:
         for row_num, row in self.data.iterrows():
             for col_num, value in enumerate(row):
                 if value:
-                    table.write(row_num + 1, col_num, value)
+                    if isinstance(value, pd.Timestamp):
+                        table.write(
+                            row_num + 1,
+                            col_num,
+                            value,
+                            formatting={"date_time_format": "d MMM yyyy"},
+                        )
+                    else:
+                        table.write(row_num + 1, col_num, value)
 
         doc.save(self.output_filename)
 
